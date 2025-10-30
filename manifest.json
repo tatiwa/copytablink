@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Copy Tab Link",
+  "description": "Copies the active tab title and URL as linked text to the clipboard.",
+  "version": "1.0.0",
+  "permissions": [
+    "tabs",
+    "clipboardWrite",
+    "scripting",
+    "activeTab"
+  ],
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "action": {
+    "default_title": "Copy Tab Link"
+  }
+}

@@ -1,3 +1,5 @@
+const copyLinkHelpers = createCopyLinkHelpers();
+
 chrome.action.onClicked.addListener(async (tab) => {
   if (!tab || !tab.id || !tab.url) {
     console.error("No active tab to copy.");
@@ -5,10 +7,14 @@ chrome.action.onClicked.addListener(async (tab) => {
   }
 
   try {
+    const explicitTitle = (tab.title || "").trim();
+    const displayTitle = explicitTitle || tab.url;
+    const { html, text } = copyLinkHelpers.buildLinkPayload(displayTitle, tab.url, Boolean(explicitTitle));
+
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      func: copyLinkToClipboard,
-      args: [tab.title ?? tab.url, tab.url],
+      func: copyLinkPayloadToClipboard,
+      args: [html, text],
       world: "MAIN",
     });
   } catch (error) {
@@ -16,14 +22,7 @@ chrome.action.onClicked.addListener(async (tab) => {
   }
 });
 
-async function copyLinkToClipboard(title, url) {
-  if (!url) {
-    throw new Error("Tab URL is missing.");
-  }
-
-  const safeTitle = (title || url).trim();
-  const { html, text } = buildLinkPayload(safeTitle, url);
-
+async function copyLinkPayloadToClipboard(html, text) {
   if (navigator.clipboard && "write" in navigator.clipboard && window.ClipboardItem) {
     const htmlBlob = new Blob([html], { type: "text/html" });
     const textBlob = new Blob([text], { type: "text/plain" });
@@ -38,9 +37,11 @@ async function copyLinkToClipboard(title, url) {
   } else {
     throw new Error("Clipboard API is unavailable in this page.");
   }
+}
 
-  function buildLinkPayload(currentTitle, currentUrl) {
-    const issueKey = detectJiraIssueKey(currentUrl, currentTitle);
+function createCopyLinkHelpers() {
+  function buildLinkPayload(currentTitle, currentUrl, hasExplicitTitle) {
+    const issueKey = detectJiraIssueKey(currentUrl, hasExplicitTitle ? currentTitle : null);
 
     if (issueKey) {
       const suffixTitle = normalizeJiraTitle(currentTitle, issueKey);
@@ -84,7 +85,7 @@ async function copyLinkToClipboard(title, url) {
         if (parsed.search) {
           const queryValues = Array.from(parsed.searchParams.values()).join(" ");
           const queryMatch = queryValues.match(KEY_RE);
-            if (queryMatch) return queryMatch[1];
+          if (queryMatch) return queryMatch[1];
         }
       }
     }
@@ -121,4 +122,18 @@ async function copyLinkToClipboard(title, url) {
   function escapeAttribute(value) {
     return value.replace(/["']/g, (char) => (char === '"' ? "&quot;" : "&#39;"));
   }
+
+  return {
+    buildLinkPayload,
+    detectJiraIssueKey,
+    normalizeJiraTitle,
+    escapeHtml,
+    escapeAttribute,
+  };
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    createCopyLinkHelpers,
+  };
 }

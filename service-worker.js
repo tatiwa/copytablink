@@ -9,7 +9,7 @@ chrome.action.onClicked.addListener(async (tab) => {
   try {
     const explicitTitle = (tab.title || "").trim();
     const displayTitle = explicitTitle || tab.url;
-    const { html, text } = copyLinkHelpers.buildLinkPayload(displayTitle, tab.url, Boolean(explicitTitle));
+    const { html, text } = copyLinkHelpers.buildLinkPayload(displayTitle, tab.url);
 
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
@@ -40,8 +40,8 @@ async function copyLinkPayloadToClipboard(html, text) {
 }
 
 function createCopyLinkHelpers() {
-  function buildLinkPayload(currentTitle, currentUrl, hasExplicitTitle) {
-    const issueKey = detectJiraIssueKey(currentUrl, hasExplicitTitle ? currentTitle : null);
+  function buildLinkPayload(currentTitle, currentUrl) {
+    const issueKey = detectJiraIssueKey(currentUrl);
 
     if (issueKey) {
       const suffixTitle = normalizeJiraTitle(currentTitle, issueKey);
@@ -62,7 +62,7 @@ function createCopyLinkHelpers() {
   }
 
   // Stricter Jira key detection: only Jira-like hosts + strict KEY_RE
-  function detectJiraIssueKey(currentUrl, currentTitle) {
+  function detectJiraIssueKey(currentUrl) {
     const KEY_RE = /\b([A-Z]{2,10}-\d{1,6})\b/;
     let parsed;
     try {
@@ -73,10 +73,7 @@ function createCopyLinkHelpers() {
 
     if (parsed) {
       const host = parsed.hostname.toLowerCase();
-      const hostLooksLikeJira =
-        /(^|\.)jira\./i.test(host) ||
-        host.endsWith(".atlassian.net") ||
-        host === "atlassian.net";
+      const hostLooksLikeJira = host.includes("jira");
 
       if (hostLooksLikeJira) {
         const pathMatch = parsed.pathname.match(KEY_RE);
@@ -88,11 +85,6 @@ function createCopyLinkHelpers() {
           if (queryMatch) return queryMatch[1];
         }
       }
-    }
-
-    if (currentTitle) {
-      const titleMatch = currentTitle.toUpperCase().match(KEY_RE);
-      if (titleMatch) return titleMatch[1];
     }
 
     return null;

@@ -16,31 +16,30 @@ const { createCopyLinkHelpers } = require("./service-worker.js");
 
 const { detectJiraIssueKey, buildLinkPayload } = createCopyLinkHelpers();
 
-test("detects Jira key from Jira Cloud path segment", () => {
-  const url = "https://company.atlassian.net/browse/PROJ-123";
-  assert.equal(detectJiraIssueKey(url, "Some Title"), "PROJ-123");
+test("detects Jira key from path segment when host contains jira", () => {
+  const url = "https://jira.company.com/browse/PROJ-123";
+  assert.equal(detectJiraIssueKey(url), "PROJ-123");
 });
 
-test("detects Jira key from Jira Cloud query string", () => {
-  const url = "https://company.atlassian.net/issues/?selectedIssue=PROJ-456";
-  assert.equal(detectJiraIssueKey(url, "Some Title"), "PROJ-456");
+test("detects Jira key from query string when host contains jira", () => {
+  const url = "https://jira.company.com/issues/?selectedIssue=PROJ-456";
+  assert.equal(detectJiraIssueKey(url), "PROJ-456");
 });
 
-test("falls back to explicit title when host is not Jira", () => {
+test("ignores Jira-like patterns when host lacks jira", () => {
   const url = "https://docs.example.com/page";
-  const title = "[PROJ-789] Spec draft";
-  assert.equal(detectJiraIssueKey(url, title), "PROJ-789");
+  assert.equal(detectJiraIssueKey(url), null);
 });
 
 test("ignores Jira-like IDs inside URL when no explicit title", () => {
   const url = "https://docs.example.com/reference/PROJ-321";
-  assert.equal(detectJiraIssueKey(url, null), null);
+  assert.equal(detectJiraIssueKey(url), null);
 });
 
 test("buildLinkPayload keeps plain formatting when detection is skipped", () => {
   const url = "https://docs.example.com/reference/PROJ-654";
   const title = url;
-  const { html, text } = buildLinkPayload(title, url, false);
+  const { html, text } = buildLinkPayload(title, url);
   assert.equal(html, `<a href="https://docs.example.com/reference/PROJ-654">${url}</a>`);
   assert.equal(text, `${url} (${url})`);
 });

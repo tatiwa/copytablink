@@ -15,7 +15,7 @@ chrome.action.onClicked.addListener(async (tab) => {
       target: { tabId: tab.id },
       func: copyLinkPayloadToClipboard,
       args: [html, text],
-      world: "MAIN",
+      world: "ISOLATED",
     });
   } catch (error) {
     console.error("Failed to write to clipboard", error);
@@ -23,16 +23,27 @@ chrome.action.onClicked.addListener(async (tab) => {
 });
 
 async function copyLinkPayloadToClipboard(html, text) {
-  if (navigator.clipboard && "write" in navigator.clipboard && window.ClipboardItem) {
-    const htmlBlob = new Blob([html], { type: "text/html" });
-    const textBlob = new Blob([text], { type: "text/plain" });
-    await navigator.clipboard.write([
-      new ClipboardItem({
-        "text/html": htmlBlob,
-        "text/plain": textBlob,
-      }),
-    ]);
-  } else if (navigator.clipboard && "writeText" in navigator.clipboard) {
+  try {
+    // Focus is often required for the Clipboard API to work
+    window.focus();
+
+    if (navigator.clipboard && "write" in navigator.clipboard && window.ClipboardItem) {
+      const htmlBlob = new Blob([html], { type: "text/html" });
+      const textBlob = new Blob([text], { type: "text/plain" });
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          "text/html": htmlBlob,
+          "text/plain": textBlob,
+        }),
+      ]);
+      return; // Success
+    }
+  } catch (error) {
+    console.error("Rich text copy failed, falling back to plain text:", error);
+  }
+
+  // Fallback to plain text if rich text failed or wasn't supported
+  if (navigator.clipboard && "writeText" in navigator.clipboard) {
     await navigator.clipboard.writeText(text);
   } else {
     throw new Error("Clipboard API is unavailable in this page.");
